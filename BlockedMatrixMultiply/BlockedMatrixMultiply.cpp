@@ -3,6 +3,9 @@
 
 #define ARRAY_SIZE 512
 
+#include <ctime>
+#include <fstream>
+#include <sstream>
 #include <iostream>
 #include <algorithm>
 #include <cmath>
@@ -24,7 +27,7 @@ int64_t GetTimeMs64()
 
 	uint64_t ret = li.QuadPart;
 	ret -= 116444736000000000LL; /* Convert from file time to UNIX epoch time. */
-	ret /= 10000; /* From 100 nano seconds (10^-7) to 1 millisecond (10^-3) intervals */
+	ret /= 10000000; /* From 100 nano seconds (10^-7) to 1 microsecond (10^-6) intervals */
 
 	return ret;
 #else
@@ -90,8 +93,22 @@ int main(int argc, char* argv[]) {
 			uint64_t endtime=GetTimeMs64();
 			uint64_t runtime=endtime-starttime;
 
-			std::cout << "runtime " << runtime << " seconds ("<<runtime/60<<" minutes) for block size " << blockSize << " experiment " << experiment<<"\n";}
-	}
+			// current date/time based on current system
+			time_t now = time(0);
 
-	return 0; }
+			std::stringstream ss;
+			ss<<now <<": \t runtime " << runtime << " µseconds (" << runtime / 1000000 << " seconds/" << runtime / 1000000 / 60 << " minutes) for block size " 
+				<< blockSize << " experiment " << experiment<<"\n";
+			std::string logElement=ss.str();
 
+			std::cout << logElement;
+
+			std::ofstream myfile;
+			myfile.open ("bmmexperiments.txt");
+			myfile << logElement;
+			myfile.close();
+		}
+
+		return 0; }
+
+}
