@@ -1,8 +1,10 @@
 // BlockedMatrixMultiply.cpp : Defines the entry point for the console application.
 //
 
-#define ARRAY_SIZE 512
+#define BUFSIZE 26
+#define ARRAY_SIZE 256
 
+#include<stdio.h>
 #include <ctime>
 #include <fstream>
 #include <sstream>
@@ -27,7 +29,7 @@ int64_t GetTimeMs64()
 
 	uint64_t ret = li.QuadPart;
 	ret -= 116444736000000000LL; /* Convert from file time to UNIX epoch time. */
-	ret /= 10000000; /* From 100 nano seconds (10^-7) to 1 microsecond (10^-6) intervals */
+	ret /= 10; // From 100 nano seconds (10^-7) 
 
 	return ret;
 #else
@@ -50,10 +52,15 @@ int64_t GetTimeMs64()
 int main(int argc, char* argv[]) {
 	int BLOCK_SIZE ;
 
-	for(int blockSize = 2; blockSize < 9; blockSize++) {
+	std::ofstream myfile;
+	myfile.open ("bmmexperiments.txt");
+
+	double logBaseTwo =  log(ARRAY_SIZE)/log(2);
+
+	for(int blockSizeExponent = 2; blockSizeExponent< logBaseTwo + 1; blockSizeExponent++) {
 		for(int experiment=1;experiment<2;experiment++){
 			uint64_t starttime=GetTimeMs64();
-			BLOCK_SIZE = (int) pow(2.0, blockSize);
+			BLOCK_SIZE = (int) pow(2.0, blockSizeExponent);
 
 			int** A = new int*[ARRAY_SIZE];
 			int** B = new int*[ARRAY_SIZE];
@@ -79,7 +86,10 @@ int main(int argc, char* argv[]) {
 						//		  std::cout<<"i "<<i<<"\n";
 						for (int jj = j; jj < max(j + BLOCK_SIZE, ARRAY_SIZE); jj++) {
 							for (int kk = k; kk < max(k + BLOCK_SIZE, ARRAY_SIZE); kk++) {
-								int product = *C[i, jj] + *A[i, kk]**B[kk, jj] ;
+								int a= *A[i, kk];
+								int b = *B[kk, jj];
+								int c = *C[i, jj];
+								int product = c + a * b;
 								*C[i, jj] = product; } } } } }
 
 			// De-Allocate memory to prevent memory leak
@@ -93,22 +103,29 @@ int main(int argc, char* argv[]) {
 			uint64_t endtime=GetTimeMs64();
 			uint64_t runtime=endtime-starttime;
 
-			// current date/time based on current system
-			time_t now = time(0);
+			time_t ltime;
+			struct tm now;
+			char timebuf[BUFSIZE];
+			errno_t err;
+
+			_time64( &ltime ); 
+			localtime_s( &now,&ltime );
+
+			// Convert to an ASCII representation. 
+			err = strftime(timebuf, BUFSIZE,"%c", &now);
 
 			std::stringstream ss;
-			ss<<now <<": \t runtime " << runtime << " µseconds (" << runtime / 1000000 << " seconds/" << runtime / 1000000 / 60 << " minutes) for block size " 
-				<< blockSize << " experiment " << experiment<<"\n";
+			ss << /*(now.tm_year + 1900) << '-' << (now.tm_mon + 1) << '-' <<  now.tm_mday << " " << */timebuf <<  ": \t runtime " << runtime 
+				<< " microseconds (" << runtime / 1000000 << " seconds/" << runtime / 1000000 / 60 << " minutes) for block size " 
+				<< BLOCK_SIZE << " experiment " << experiment << "\n";
 			std::string logElement=ss.str();
 
 			std::cout << logElement;
 
-			std::ofstream myfile;
-			myfile.open ("bmmexperiments.txt");
 			myfile << logElement;
-			myfile.close();
 		}
-
-		return 0; }
+	}
+	myfile.close();
+	return 0;
 
 }
