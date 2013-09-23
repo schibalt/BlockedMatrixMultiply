@@ -2,7 +2,7 @@
 //
 
 #define BUFSIZE 26
-#define ARRAY_SIZE 256
+#define ARRAY_SIZE 128
 
 #include<stdio.h>
 #include <ctime>
@@ -56,10 +56,11 @@ int main(int argc, char* argv[]) {
 	myfile.open ("bmmexperiments.txt");
 
 	double logBaseTwo =  log(ARRAY_SIZE)/log(2);
+	uint64_t programstarttime = GetTimeMs64();
 
-	for(int blockSizeExponent = 2; blockSizeExponent< logBaseTwo + 1; blockSizeExponent++) {
-		for(int experiment=1;experiment<2;experiment++){
-			uint64_t starttime=GetTimeMs64();
+	for(int blockSizeExponent = 2; blockSizeExponent< logBaseTwo; blockSizeExponent++) {
+		for(int experiment = 1;experiment<2;experiment++){
+			uint64_t starttime = GetTimeMs64();
 			BLOCK_SIZE = (int) pow(2.0, blockSizeExponent);
 
 			int** A = new int*[ARRAY_SIZE];
@@ -76,21 +77,45 @@ int main(int argc, char* argv[]) {
 				for(y = 0; y < ARRAY_SIZE; y ++) {
 					A[x][y] = 1;
 					B[x][y] = 1;
-					C[x][y] = 1; } }
+					C[x][y] = 0; } }
 
-			for (int k = 0; k < ARRAY_SIZE; k += BLOCK_SIZE) {
-				std::cout << "k " << k << "\n";
+			for (int k = 0; k < ARRAY_SIZE; k += BLOCK_SIZE) 
+			{
+				uint64_t blockstarttime=GetTimeMs64();
+				int a;
+				int b;
+				int c;
+				int product;
+
 				for (int j = 0; j < ARRAY_SIZE; j += BLOCK_SIZE) {
 					//std::cout << "j " << j << "\n";
 					for (int i = 0; i < ARRAY_SIZE; i++) {
 						//		  std::cout<<"i "<<i<<"\n";
 						for (int jj = j; jj < max(j + BLOCK_SIZE, ARRAY_SIZE); jj++) {
 							for (int kk = k; kk < max(k + BLOCK_SIZE, ARRAY_SIZE); kk++) {
-								int a= *A[i, kk];
-								int b = *B[kk, jj];
-								int c = *C[i, jj];
-								int product = c + a * b;
-								*C[i, jj] = product; } } } } }
+								a= *A[i, kk];
+								b = *B[kk, jj];
+								c = *C[i, jj];
+								product = c + (a * b);
+								*C[i, jj] = product; } } } }
+
+				uint64_t blockendtime = GetTimeMs64();
+				uint64_t blockruntime = blockendtime - blockstarttime;
+
+				std::stringstream ss;
+				ss << "\tblock " << k / BLOCK_SIZE << " runtime " << blockruntime << " microseconds (" << blockruntime / 1000000 << " seconds/" 
+					<< blockruntime / 1000000 / 60 << " minutes)\n";
+
+				std::string logElement=ss.str();
+				std::cout << logElement;
+				myfile << logElement;
+			}
+
+			for(x = 0; x < ARRAY_SIZE; x ++) {
+				for(y = 0; y < ARRAY_SIZE; y ++) {
+					printf("%d ",*C[x,y]);
+				} printf("\n\n");
+			}
 
 			// De-Allocate memory to prevent memory leak
 			for (int i = 0; i < ARRAY_SIZE; ++i) {
@@ -99,7 +124,8 @@ int main(int argc, char* argv[]) {
 				delete [] C[i]; }
 			delete [] A;
 			delete [] B;
-			delete [] C; 
+			delete [] C;
+
 			uint64_t endtime=GetTimeMs64();
 			uint64_t runtime=endtime-starttime;
 
@@ -115,16 +141,24 @@ int main(int argc, char* argv[]) {
 			err = strftime(timebuf, BUFSIZE,"%c", &now);
 
 			std::stringstream ss;
-			ss << /*(now.tm_year + 1900) << '-' << (now.tm_mon + 1) << '-' <<  now.tm_mday << " " << */timebuf <<  ": \t runtime " << runtime 
-				<< " microseconds (" << runtime / 1000000 << " seconds/" << runtime / 1000000 / 60 << " minutes) for block size " 
-				<< BLOCK_SIZE << " experiment " << experiment << "\n";
+			ss << timebuf <<  ": \t runtime " << runtime << " microseconds (" << runtime / 1000000 << " seconds/" << runtime / 1000000 / 60 
+				<< " minutes) for block size " << BLOCK_SIZE << " experiment " << experiment << "\n";
 			std::string logElement=ss.str();
 
 			std::cout << logElement;
-
 			myfile << logElement;
 		}
 	}
+	uint64_t programendtime = GetTimeMs64();
+	uint64_t programruntime = programendtime - programstarttime;
+
+	std::stringstream ss;
+	ss << "total run time " << programruntime << " microseconds (" << programruntime / 1000000 << " seconds/" << programruntime / 1000000 / 60 
+		<< " minutes)\n";
+
+	std::string logElement=ss.str();
+	std::cout << logElement;
+	myfile << logElement;
 	myfile.close();
 	return 0;
 
